@@ -26,6 +26,9 @@ from load_blender import load_blender_data
 from load_LINEMOD import load_LINEMOD_data
 
 
+import wandb
+
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 np.random.seed(0)
 DEBUG = False
@@ -512,6 +515,14 @@ def config_parser():
                         help='do not reload weights from saved ckpt')
     parser.add_argument("--ft_path", type=str, default=None, 
                         help='specific weights npy file to reload for coarse network')
+    
+    # resuming options (for wandb)
+    parser.add_argument("--run_id", type=str, default=None,
+                        help="wandb run `id` to resume training (only effective when `--resume` flag is set)")
+    parser.add_argument("--resume", action='store_true',
+                        help=("do resume a run that is either characterized via the `$basedir/wandb/wandb-resume.json` file or "
+                              "with the `id` or specified in the `--run_id` flag"))
+
 
     # rendering options
     parser.add_argument("--N_samples", type=int, default=64, 
@@ -792,6 +803,24 @@ def train():
 
     # Summary writers
     # writer = SummaryWriter(os.path.join(basedir, 'summaries', expname))
+    if args.resume:
+        resume_run = "must"
+        if os.path.exists(os.path.join(args.basedir, "wandb", "wandb-resume.json")):
+            run_id = None
+        else:
+            run_id = args.run_id
+    else:
+        resume_run = None
+        run_id = None
+
+    wandb.init(
+        project="HashNeRF-pytorch",
+        dir=args.basedir,
+        tags=args.expname.split("_"),
+        config=args,
+        resume=resume_run,
+        id=run_id
+    )
     
     loss_list = []
     psnr_list = []
