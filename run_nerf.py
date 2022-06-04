@@ -592,7 +592,7 @@ def config_parser():
                         help='frequency of console printout and metric loggin')
     parser.add_argument("--i_img",     type=int, default=500, 
                         help='frequency of tensorboard image logging')
-    parser.add_argument("--i_weights", type=int, default=10000, 
+    parser.add_argument("--i_weights", type=int, default=1000, 
                         help='frequency of weight ckpt saving')
     parser.add_argument("--i_testset", type=int, default=1000, 
                         help='frequency of testset saving')
@@ -954,7 +954,7 @@ def train():
             rgb_filename = moviebase + 'rgb.mp4'
             disp_filename = moviebase + 'disp.mp4'
             imageio.mimwrite(rgb_filename, to8b(rgbs), fps=30, quality=8)
-            imageio.mimwrite(disp_filename, to8b(disps / np.max(disps)), fps=30, quality=8)
+            imageio.mimwrite(disp_filename, to8b(norm(disps)), fps=30, quality=8)
             wandb.log({"test_rgb_video": wandb.Video(rgb_filename)}, step=i)
             wandb.log({"test_disp_video": wandb.Video(disp_filename)}, step=i)
 
