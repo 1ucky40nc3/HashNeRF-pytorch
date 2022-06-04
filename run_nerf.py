@@ -954,7 +954,7 @@ def train():
             rgb_filename = moviebase + 'rgb.mp4'
             disp_filename = moviebase + 'disp.mp4'
             imageio.mimwrite(rgb_filename, to8b(rgbs), fps=30, quality=8)
-            imageio.mimwrite(rgb_filename, to8b(disps / np.max(disps)), fps=30, quality=8)
+            imageio.mimwrite(disp_filename, to8b(disps / np.max(disps)), fps=30, quality=8)
             wandb.log({"test_rgb_video": wandb.Video(rgb_filename)}, step=i)
             wandb.log({"test_disp_video": wandb.Video(disp_filename)}, step=i)
 
