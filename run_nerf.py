@@ -144,7 +144,7 @@ def render(H, W, K, chunk=1024*32, rays=None, c2w=None, ndc=True,
     return ret_list + [ret_dict]
 
 
-def render_path(render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, savedir=None, render_factor=0):
+def render_path(render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, savedir=None, render_factor=0, step=None):
 
     H, W, focal = hwf
 
@@ -183,7 +183,9 @@ def render_path(render_poses, hwf, K, chunk, render_kwargs, gt_imgs=None, savedi
     rgbs = np.stack(rgbs, 0)
     disps = np.stack(disps, 0)
     if gt_imgs is not None and render_factor==0:
-        print("Avg PSNR over Test set: ", sum(psnrs)/len(psnrs))
+        test_psnr = sum(psnrs)/len(psnrs)
+        print("Avg PSNR over Test set: ", test_psnr)
+        wandb.log(dict(test_psnr=test_psnr), step=step)
 
     return rgbs, disps
 
@@ -949,8 +951,12 @@ def train():
                 rgbs, disps = render_path(render_poses, hwf, K, args.chunk, render_kwargs_test)
             print('Done, saving', rgbs.shape, disps.shape)
             moviebase = os.path.join(basedir, expname, '{}_spiral_{:06d}_'.format(expname, i))
-            imageio.mimwrite(moviebase + 'rgb.mp4', to8b(rgbs), fps=30, quality=8)
-            imageio.mimwrite(moviebase + 'disp.mp4', to8b(disps / np.max(disps)), fps=30, quality=8)
+            rgb_filename = moviebase + 'rgb.mp4'
+            disp_filename = moviebase + 'disp.mp4'
+            imageio.mimwrite(rgb_filename, to8b(rgbs), fps=30, quality=8)
+            imageio.mimwrite(rgb_filename, to8b(disps / np.max(disps)), fps=30, quality=8)
+            wandb.log({"test_rgb_video": wandb.Video(rgb_filename)}, step=i)
+            wandb.log({"test_disp_video": wandb.Video(disp_filename)}, step=i)
 
             # if args.use_viewdirs:
             #     render_kwargs_test['c2w_staticcam'] = render_poses[0][:3,:4]
@@ -964,13 +970,16 @@ def train():
             os.makedirs(testsavedir, exist_ok=True)
             print('test poses shape', poses[i_test].shape)
             with torch.no_grad():
-                render_path(torch.Tensor(poses[i_test]).to(device), hwf, K, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir)
+                render_path(
+                    torch.Tensor(poses[i_test]).to(device), 
+                    hwf, K, args.chunk, render_kwargs_test, gt_imgs=images[i_test], savedir=testsavedir, step=i)
             print('Saved test set')
 
 
     
         if i%args.i_print==0:
             tqdm.write(f"[TRAIN] Iter: {i} Loss: {loss.item()}  PSNR: {psnr.item()}")
+            wandb.log(dict(train_loss=loss.item(), train_psnr=psnr.item()), step=i)
             loss_list.append(loss.item())
             psnr_list.append(psnr.item())
             time_list.append(t)
